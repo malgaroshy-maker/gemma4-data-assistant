@@ -119,6 +119,18 @@ def execute_python_code(code_string):
 
         # Check for plots
         if plt.get_fignums():
+            if st.session_state.get("language") == "ar" and HAS_ARABIC_SUPPORT:
+                for fig_num in plt.get_fignums():
+                    figure = plt.figure(fig_num)
+                    # Draw first to populate all text elements
+                    figure.canvas.draw()
+                    # Process all Arabic text
+                    _process_figure_text(figure)
+                    # Redraw with reshaped text
+                    figure.canvas.draw()
+                    # Debug: save a test image
+                    figure.savefig("debug_chart.png", dpi=100, bbox_inches="tight")
+
             buf = BytesIO()
             plt.savefig(buf, format="png", bbox_inches="tight", dpi=100)
             buf.seek(0)
@@ -285,80 +297,79 @@ def setup_arabic_matplotlib():
     if not font_found:
         plt.rcParams["font.family"] = "sans-serif"
 
-    # Monkey-patch matplotlib text methods to auto-process Arabic
-    _original_set_text = matplotlib.text.Text.set_text
-    _original_set_title = matplotlib.axes.Axes.set_title
-    _original_set_xlabel = matplotlib.axes.Axes.set_xlabel
-    _original_set_ylabel = matplotlib.axes.Axes.set_ylabel
-    _original_set_xticklabels = matplotlib.axes.Axes.set_xticklabels
-    _original_set_yticklabels = matplotlib.axes.Axes.set_yticklabels
-    _original_text = matplotlib.axes.Axes.text
-    _original_annotate = matplotlib.axes.Axes.annotate
-
-    def _process_if_arabic(s):
-        if not isinstance(s, str):
-            return s
-        # Detect Arabic characters
-        if any("\u0600" <= c <= "\u06ff" or "\u0750" <= c <= "\u077f" for c in s):
-            return process_arabic_text(s)
-        return s
-
-    def _patched_set_text(self, s):
-        return _original_set_text(self, _process_if_arabic(s))
-
-    def _patched_set_title(self, label, *args, **kwargs):
-        return _original_set_title(self, _process_if_arabic(label), *args, **kwargs)
-
-    def _patched_set_xlabel(self, xlabel, *args, **kwargs):
-        return _original_set_xlabel(self, _process_if_arabic(xlabel), *args, **kwargs)
-
-    def _patched_set_ylabel(self, ylabel, *args, **kwargs):
-        return _original_set_ylabel(self, _process_if_arabic(ylabel), *args, **kwargs)
-
-    def _patched_set_xticklabels(self, labels, *args, **kwargs):
-        if isinstance(labels, list):
-            labels = [
-                _process_if_arabic(l) if isinstance(l, str) else l for l in labels
-            ]
-        return _original_set_xticklabels(self, labels, *args, **kwargs)
-
-    def _patched_set_yticklabels(self, labels, *args, **kwargs):
-        if isinstance(labels, list):
-            labels = [
-                _process_if_arabic(l) if isinstance(l, str) else l for l in labels
-            ]
-        return _original_set_yticklabels(self, labels, *args, **kwargs)
-
-    def _patched_text(self, x, y, s, *args, **kwargs):
-        return _original_text(self, x, y, _process_if_arabic(s), *args, **kwargs)
-
-    def _patched_annotate(self, text, *args, **kwargs):
-        return _original_annotate(self, _process_if_arabic(text), *args, **kwargs)
-
-    matplotlib.text.Text.set_text = _patched_set_text
-    matplotlib.axes.Axes.set_title = _patched_set_title
-    matplotlib.axes.Axes.set_xlabel = _patched_set_xlabel
-    matplotlib.axes.Axes.set_ylabel = _patched_set_ylabel
-    matplotlib.axes.Axes.set_xticklabels = _patched_set_xticklabels
-    matplotlib.axes.Axes.set_yticklabels = _patched_set_yticklabels
-    matplotlib.axes.Axes.text = _patched_text
-    matplotlib.axes.Axes.annotate = _patched_annotate
-
     return HAS_ARABIC_SUPPORT
 
 
-def process_arabic_text(text):
-    """Reshape and reorder Arabic text for proper rendering in matplotlib."""
-    if not text:
+def _reshape_arabic(text):
+    """Reshape and reorder Arabic text for matplotlib rendering."""
+    if not isinstance(text, str):
+        return text
+    has_arabic = any(
+        "\u0600" <= c <= "\u06ff" or "\u0750" <= c <= "\u077f" for c in text
+    )
+    if not has_arabic:
         return text
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
 
-        reshaped = arabic_reshaper.reshape(str(text))
-        return get_display(reshaped)
+        return get_display(arabic_reshaper.reshape(text))
     except Exception:
-        return str(text)
+        return text
+
+
+def _process_figure_text(figure):
+    """Process ALL text elements in a matplotlib figure for Arabic."""
+    # Process all axes
+    for ax in figure.get_axes():
+        # Title
+        title = ax.get_title()
+        if title:
+            ax.set_title(_reshape_arabic(title))
+        # Labels
+        xlabel = ax.get_xlabel()
+        if xlabel:
+            ax.set_xlabel(_reshape_arabic(xlabel))
+        ylabel = ax.get_ylabel()
+        if ylabel:
+            ax.set_ylabel(_reshape_arabic(ylabel))
+        # Tick labels - process the actual text objects
+        for tick in ax.get_xticklabels():
+            txt = tick.get_text()
+            if txt:
+                tick.set_text(_reshape_arabic(txt))
+        for tick in ax.get_yticklabels():
+            txt = tick.get_text()
+            if txt:
+                tick.set_text(_reshape_arabic(txt))
+        # Legend
+        if ax.get_legend():
+            for t in ax.get_legend().get_texts():
+                txt = t.get_text()
+                if txt:
+                    t.set_text(_reshape_arabic(txt))
+        # Text objects (annotations, ax.text, etc.)
+        for t in list(ax.texts):
+            txt = t.get_text()
+            if txt:
+                t.set_text(_reshape_arabic(txt))
+        # Children that are Text instances
+        for child in list(ax.get_children()):
+            if hasattr(child, "get_text") and hasattr(child, "set_text"):
+                txt = child.get_text()
+                if txt and any("\u0600" <= c <= "\u06ff" for c in txt):
+                    child.set_text(_reshape_arabic(txt))
+    # Figure-level texts
+    for t in list(figure.texts):
+        txt = t.get_text()
+        if txt:
+            t.set_text(_reshape_arabic(txt))
+    # Figure suptitle
+    suptitle = figure._suptitle
+    if suptitle:
+        txt = suptitle.get_text()
+        if txt:
+            suptitle.set_text(_reshape_arabic(txt))
 
 
 HAS_ARABIC_SUPPORT = setup_arabic_matplotlib() if is_rtl else False
