@@ -128,8 +128,6 @@ def execute_python_code(code_string):
                     _process_figure_text(figure)
                     # Redraw with reshaped text
                     figure.canvas.draw()
-                    # Debug: save a test image
-                    figure.savefig("debug_chart.png", dpi=100, bbox_inches="tight")
 
             buf = BytesIO()
             plt.savefig(buf, format="png", bbox_inches="tight", dpi=100)
