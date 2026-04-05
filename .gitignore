@@ -1,9 +1,33 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
-.env
 *.egg-info/
 dist/
 build/
+
+# IDE
+.vscode/
+.idea/
+
+# Skill caches
 .opencode/
 .ruff_cache/
+
+# Model files (massive)
+*.gguf
+
+# Temp files
+*.wav
+*.log
+Thumbs.db
+.DS_Store
+
+# User data
+*.xlsx
+*.csv
+gemma_transformed.xlsx
+
+# Secrets
+.env
+*.pem

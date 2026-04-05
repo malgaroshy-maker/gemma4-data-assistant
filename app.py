@@ -6,9 +6,9 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
-import traceback
 import io
 import hashlib
+import re
 
 # ---------------------------------------------------------
 # CONSTANTS & ASSETS
@@ -141,7 +141,7 @@ tools_schema = [
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="Gemma Data Assistant",
-    page_icon="https://ai.google.dev/static/gemma/images/gemma_logo.svg",
+    page_icon="💎",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -161,6 +161,11 @@ if "last_audio_hash" not in st.session_state:
 if "last_image_hash" not in st.session_state:
     st.session_state.last_image_hash = None
 
+# Initialize OpenAI client once (avoids recreation on every rerun)
+DEFAULT_SERVER_URL = os.environ.get("SERVER_URL", "http://localhost:8080/v1")
+DEFAULT_MODEL_NAME = os.environ.get("MODEL_NAME", "unsloth/gemma-4-e4b-it-gguf:Q4_K_XL")
+client = OpenAI(base_url=DEFAULT_SERVER_URL, api_key="sk-no-key-required")
+
 # ---------------------------------------------------------
 # THEMED COLORS DEFINITION (FORCED DARK MODE)
 # ---------------------------------------------------------
@@ -178,8 +183,7 @@ c = {
 st.markdown(
     f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
-    .stApp {{ background-color: {c["bg"]}; color: {c["text"]} !important; font-family: 'Fira Sans', sans-serif; }}
+    .stApp {{ background-color: {c["bg"]}; color: {c["text"]} !important; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }}
     .stApp p, .stApp span, .stApp label, .stApp li, .stApp h1, .stApp h2, .stApp h3, .stApp h4 {{ color: {c["text"]} !important; }}
     [data-testid="stSidebar"] {{ background-color: {c["sidebar_bg"]}; border-right: 1px solid {c["border"]}; }}
     [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] label {{ color: {c["text"]} !important; }}
@@ -214,17 +218,15 @@ with st.sidebar:
     )
 
     with st.expander("Server Settings"):
-        server_url = st.text_input("Server URL", value="http://localhost:8080/v1")
-        model_name = st.text_input(
-            "Model Name", value="unsloth/gemma-4-e4b-it-gguf:Q4_K_XL"
-        )
+        server_url = st.text_input("Server URL", value=DEFAULT_SERVER_URL)
+        model_name = st.text_input("Model Name", value=DEFAULT_MODEL_NAME)
         st.info(
             "💡 **Multimodal Note:** To use Voice/Vision, you MUST start your server with the `--mmproj` flag pointing to the Gemma 4 multimodal projector file."
         )
-        client = OpenAI(base_url=server_url, api_key="sk-no-key-required")
         if st.button("🔌 Check Connection", use_container_width=True):
             try:
-                models = client.models.list()
+                temp_client = OpenAI(base_url=server_url, api_key="sk-no-key-required")
+                models = temp_client.models.list()
                 st.success(f"Connected! {len(models.data)} models found.")
             except Exception as e:
                 st.error(str(e))
@@ -450,7 +452,6 @@ else:
     if audio_bytes:
         import speech_recognition as sr
         import tempfile
-        import wave
 
         audio_content = audio_bytes.getvalue()
         audio_hash = hashlib.md5(audio_content).hexdigest()
@@ -492,11 +493,11 @@ else:
         if transcribed_text:
             display_prompt = f"🎤 {transcribed_text}"
 
-        if active_prompt:
-            user_content.append({"type": "text", "text": active_prompt})
-
+        # Image MUST come before text per Gemma 4 multimodal spec
         if uploaded_image and image_is_new:
-            display_prompt += f"\n🖼️ [Image: {uploaded_image.name}]"
+            display_prompt = f"🖼️ [Image: {uploaded_image.name}]" + (
+                f"\n{display_prompt}" if display_prompt else ""
+            )
             # Reset position before reading
             uploaded_image.seek(0)
             b64_img = base64.b64encode(uploaded_image.read()).decode("utf-8")
@@ -506,6 +507,9 @@ else:
                     "image_url": {"url": f"data:image/png;base64,{b64_img}"},
                 }
             )
+
+        if active_prompt:
+            user_content.append({"type": "text", "text": active_prompt})
 
         if not active_prompt:
             user_content.append({"type": "text", "text": "Analyze media."})
@@ -604,12 +608,13 @@ else:
                 if tool_calls:
                     for tc in tool_calls.values():
                         st.info("⚙️ Calling Tool...")
-                        args = json.loads(
-                            tc["function"]["arguments"]
-                            .replace('<|">', '"')
-                            .replace("<|", "")
-                            .replace("|>", "")
-                        )
+                        raw_args = tc["function"]["arguments"]
+                        # Extract valid JSON object from potentially malformed output
+                        match = re.search(r"\{.*\}", raw_args, re.DOTALL)
+                        if match:
+                            args = json.loads(match.group(0))
+                        else:
+                            args = json.loads(raw_args)
                         code = (
                             args.get("code_string", "")
                             .replace(" plt.", "\nplt.")

@@ -7,7 +7,7 @@
 [![Gemma 4](https://img.shields.io/badge/Model-Gemma%204%20E4B-4285F4.svg?style=flat-square)](https://ai.google.dev/gemma)
 [![llama.cpp](https://img.shields.io/badge/Server-llama.cpp-orange.svg?style=flat-square)](https://github.com/ggml-org/llama.cpp)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/yourusername/gemma-data-assistant/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/malgaroshy-maker/gemma4-data-assistant/pulls)
 
 **A local-first, agentic AI application for private data analysis using Google's Gemma 4 E4B model with multimodal capabilities.**
 
@@ -73,7 +73,7 @@ The application leverages:
 - **Text Chat**: Traditional conversational interface with context awareness
 
 ### 📊 Data Intelligence
-- **Auto-profiling**: Schema detection, duplicate analysis, null counting
+- **Auto-profiling**: Schema detection, column types, and statistical summaries (mean, sum, min, max, std)
 - **Context Optimization**: Fast Context mode (100 rows + full statistics) for 70% latency reduction
 - **Export Capabilities**: Download transformed data as Excel files
 - **Demo Datasets**: 5 pre-loaded datasets for immediate testing
@@ -102,8 +102,8 @@ The application leverages:
 
 1. **Clone the repository**:
 ```bash
-git clone https://github.com/yourusername/gemma-data-assistant.git
-cd gemma-data-assistant
+git clone https://github.com/malgaroshy-maker/gemma4-data-assistant.git
+cd gemma4-data-assistant
 ```
 
 2. **Install dependencies**:
@@ -393,9 +393,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Developed by [Mahamed Algaroshy](https://github.com/yourusername)**  
+**Developed by [Mahamed Algaroshy](https://github.com/malgaroshy-maker)**  
 *Electrical Engineer & AI Enthusiast*
 
-[⭐ Star this repo](https://github.com/yourusername/gemma-data-assistant/stargazers) • [🐛 Report Bug](https://github.com/yourusername/gemma-data-assistant/issues) • [💡 Request Feature](https://github.com/yourusername/gemma-data-assistant/issues)
+[⭐ Star this repo](https://github.com/malgaroshy-maker/gemma4-data-assistant/stargazers) • [🐛 Report Bug](https://github.com/malgaroshy-maker/gemma4-data-assistant/issues) • [💡 Request Feature](https://github.com/malgaroshy-maker/gemma4-data-assistant/issues)
 
 </div>
