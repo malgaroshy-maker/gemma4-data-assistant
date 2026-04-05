@@ -384,7 +384,7 @@ lang_options = {"en": "🇬🇧 English", "ar": "🇸🇦 العربية", "fr":
 ## 📁 Project Structure
 
 ```
-gemma-data-assistant/
+gemma4-data-assistant/
 ├── app.py                          # Main Streamlit application (~990 lines)
 ├── translations.py                 # Bilingual translation dictionary (EN/AR)
 ├── start_llama_server.bat          # Auto-detecting server launcher
@@ -396,7 +396,7 @@ gemma-data-assistant/
 ├── user-manual.md                  # User guide with demo scenarios
 ├── gemma4-doc.md                   # Gemma 4 model documentation
 ├── design-system/                  # UI/UX design system
-│   ├── gemma-data-assistant/
+│   ├── gemma4-data-assistant/
 │   │   └── MASTER.md
 │   └── gemma-data-assistant-v2/
 │       └── MASTER.md
@@ -637,7 +637,7 @@ streamlit run app.py
 ## 📁 هيكل المشروع
 
 ```
-gemma-data-assistant/
+gemma4-data-assistant/
 ├── app.py                          # تطبيق Streamlit الرئيسي (~990 سطر)
 ├── translations.py                 # قاموس الترجمة ثنائي اللغة (EN/AR)
 ├── start_llama_server.bat          # مشغل الخادم مع اكتشاف تلقائي
