@@ -92,6 +92,9 @@ def execute_python_code(code_string):
         from io import StringIO, BytesIO
         import sys
 
+        # Strip plt.show() — blocks in non-interactive (Agg) backend
+        code_string = re.sub(r"plt\.show\(\s*\)", "", code_string)
+
         old_stdout = sys.stdout
         redirected_output = sys.stdout = StringIO()
 
