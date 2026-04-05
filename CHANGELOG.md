@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [1.1.0] - 2026-04-05
 
 ### Added
 - Full Arabic language support with RTL layout
@@ -31,6 +31,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `start_llama_server.bat` auto-detects latest HuggingFace snapshot
 - System fonts instead of Google Fonts for 100% offline operation
 - Improved launcher scripts with Python detection and error handling
+
+## [Unreleased]
 
 ## [1.0.0] - 2026-04-05
 
