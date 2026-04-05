@@ -1,17 +1,22 @@
 @echo off
+title Gemma Data Assistant
 echo ========================================
 echo   Gemma Data Assistant - Launcher
 echo ========================================
 echo.
 
 REM Check if Python is installed
-python --version >nul 2>&1
+python --version >NUL 2>NUL
 if errorlevel 1 (
     echo ERROR: Python is not installed or not in PATH.
     echo Please install Python 3.10+ from https://www.python.org/downloads/
+    echo.
     pause
     exit /b 1
 )
+
+echo Python found.
+echo.
 
 REM Check if virtual environment exists
 if not exist ".venv\Scripts\activate.bat" (
@@ -19,6 +24,7 @@ if not exist ".venv\Scripts\activate.bat" (
     python -m venv .venv
     if errorlevel 1 (
         echo ERROR: Failed to create virtual environment.
+        echo.
         pause
         exit /b 1
     )
@@ -27,6 +33,7 @@ if not exist ".venv\Scripts\activate.bat" (
     pip install -r requirements.txt
     if errorlevel 1 (
         echo ERROR: Failed to install dependencies.
+        echo.
         pause
         exit /b 1
     )
@@ -40,4 +47,10 @@ echo.
 echo Starting Gemma Data Assistant...
 echo Open http://localhost:8501 in your browser
 echo.
+echo Press Ctrl+C to stop the server.
+echo.
 streamlit run app.py
+
+echo.
+echo Application stopped.
+pause

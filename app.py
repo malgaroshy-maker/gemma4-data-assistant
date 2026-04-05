@@ -76,6 +76,7 @@ def get_icon_svg(icon_name, size=20, color="currentColor"):
 def execute_python_code(code_string):
     """Executes python code and returns text output + any generated plot as base64."""
     plot_b64 = None
+    captured_df = None
     try:
         exec_globals = {"df": st.session_state.df, "pd": pd, "plt": plt, "sns": sns}
         from io import StringIO, BytesIO
@@ -83,6 +84,18 @@ def execute_python_code(code_string):
 
         old_stdout = sys.stdout
         redirected_output = sys.stdout = StringIO()
+
+        # Wrap print to capture DataFrame outputs
+        original_print = print
+
+        def wrapped_print(*args, **kwargs):
+            nonlocal captured_df
+            for arg in args:
+                if isinstance(arg, pd.DataFrame):
+                    captured_df = arg
+            original_print(*args, **kwargs)
+
+        exec_globals["print"] = wrapped_print
 
         # Execute the code
         exec(code_string, exec_globals)
@@ -100,13 +113,35 @@ def execute_python_code(code_string):
             plt.clf()
             plt.close("all")
 
-        # Update last_tool_df if created
+        # Detect any DataFrame created or modified during execution
         if "result_df" in exec_globals and isinstance(
             exec_globals["result_df"], pd.DataFrame
         ):
             st.session_state.last_tool_df = exec_globals["result_df"]
-        elif "df" in exec_globals and isinstance(exec_globals["df"], pd.DataFrame):
-            st.session_state.last_tool_df = exec_globals["df"]
+        elif captured_df is not None:
+            st.session_state.last_tool_df = captured_df
+        else:
+            # Scan exec_globals for any new DataFrame
+            skip = {
+                "df",
+                "pd",
+                "plt",
+                "sns",
+                "StringIO",
+                "BytesIO",
+                "sys",
+                "old_stdout",
+                "redirected_output",
+                "print",
+                "original_print",
+                "wrapped_print",
+            }
+            for name, val in exec_globals.items():
+                if name in skip:
+                    continue
+                if isinstance(val, pd.DataFrame):
+                    st.session_state.last_tool_df = val
+                    break
 
         return {
             "status": "success",

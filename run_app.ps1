@@ -8,13 +8,15 @@ Write-Host ""
 # Check if Python is installed
 try {
     $pythonVersion = python --version 2>&1
-    Write-Host "Python detected: $pythonVersion" -ForegroundColor Green
+    Write-Host "Python found: $pythonVersion" -ForegroundColor Green
 } catch {
     Write-Host "ERROR: Python is not installed or not in PATH." -ForegroundColor Red
     Write-Host "Please install Python 3.10+ from https://www.python.org/downloads/" -ForegroundColor Yellow
     Read-Host "Press Enter to exit"
     exit 1
 }
+
+Write-Host ""
 
 # Check if virtual environment exists
 if (!(Test-Path ".venv\Scripts\Activate.ps1")) {
@@ -43,4 +45,10 @@ Write-Host ""
 Write-Host "Starting Gemma Data Assistant..." -ForegroundColor Green
 Write-Host "Open http://localhost:8501 in your browser" -ForegroundColor Yellow
 Write-Host ""
+Write-Host "Press Ctrl+C to stop the server." -ForegroundColor Gray
+Write-Host ""
 streamlit run app.py
+
+Write-Host ""
+Write-Host "Application stopped." -ForegroundColor Yellow
+Read-Host "Press Enter to exit"
