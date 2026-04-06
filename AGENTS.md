@@ -25,7 +25,7 @@ streamlit run app.py
 - `pandas` + `openpyxl` — data loading (CSV/XLSX)
 - `openai` — client for llama-server's OpenAI-compatible API
 - `matplotlib` + `seaborn` — chart generation (executed via AI tool calls)
-- `SpeechRecognition` — local voice-to-text (uses Google's free speech API)
+- `SpeechRecognition` — voice-to-text (currently uses Google's online API — see AUDIO_STATUS.md)
 - `tabulate` — DataFrame to Markdown conversion
 
 ## Critical Implementation Details
@@ -44,8 +44,11 @@ streamlit run app.py
 
 ### Voice Input
 - Uses `st.audio_input()` → saves to temp WAV → transcribes via `SpeechRecognition.recognize_google()`
+- ⚠️ **Requires internet** — sends audio to Google's free STT API (see AUDIO_STATUS.md)
 - MD5 hash prevents duplicate processing of same audio blob
 - Transcribed text replaces the prompt sent to the AI
+- **Planned**: Replace with Faster-Whisper for fully offline ASR (supports Arabic)
+- **Future**: Switch to native Gemma 4 ASR once llama.cpp resolves issue #21325
 
 ### Thinking Mode
 - `<|think|>` token injected at start of system prompt

@@ -51,7 +51,10 @@ TRANSLATIONS = {
         "view_code": "📝 View Generated Code",
         "result_table": "📋 Result Table",
         "calling_tool": "⚙️ Calling Tool...",
+        "executing_text_code": "⚙️ Executing code from response...",
         "result_preview": "📋 Result Preview",
+        "voice_requires_internet": "Requires internet",
+        "voice_requires_internet_help": "Voice input uses Google's Speech-to-Text API. Fully offline voice coming soon via Faster-Whisper or native Gemma 4 ASR.",
         # Status messages
         "transcribed": '🎤 Transcribed: "{text}"',
         "could_not_understand": "🎤 Could not understand audio. Please try again.",
@@ -123,7 +126,10 @@ TRANSLATIONS = {
         "view_code": "📝 عرض الكود المُولَّد",
         "result_table": "📋 جدول النتائج",
         "calling_tool": "⚙️ استدعاء الأداة...",
+        "executing_text_code": "⚙️ تنفيذ الكود من الرد...",
         "result_preview": "📋 معاينة النتائج",
+        "voice_requires_internet": "يتطلب إنترنت",
+        "voice_requires_internet_help": "إدخال الصوت يستخدم واجهة Google. التعرف الصوتي بدون إنترنت قريباً عبر Faster-Whisper أو دعم Gemma 4 الأصلي.",
         # Status messages
         "transcribed": '🎤 تم التفريغ: "{text}"',
         "could_not_understand": "🎤 لم أتمكن من فهم الصوت. حاول مرة أخرى.",

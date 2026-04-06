@@ -22,7 +22,9 @@ Welcome to the **Gemma 4 Data Assistant**! This demo is designed to push the bou
 ### 🎙️ Scenario B: Voice to Data
 1. Click the **Microphone icon** in the chat bar.
 2. Say: *"Gemma, who is the manager for the IT department?"*
-3. **The Wow:** Gemma processes the audio file natively to extract your intent and search the spreadsheet.
+3. **The Wow:** Gemma processes your query and searches the spreadsheet.
+
+> ⚠️ **Note**: Voice input currently requires an internet connection (uses Google's Speech-to-Text API). Fully offline voice recognition is planned via [Faster-Whisper](AUDIO_STATUS.md) or once llama.cpp adds native Gemma 4 ASR support.
 
 ### 📊 Scenario C: The Agentic Visualization
 1. Type: *"Draw a colorful pie chart showing employee distribution by department."*

@@ -186,7 +186,7 @@ tools_schema = [
         "type": "function",
         "function": {
             "name": "execute_python_code",
-            "description": "Executes Python code to analyze 'df' or draw charts. 'df', 'pd', 'plt', 'sns' are available.",
+            "description": "Executes Python code to analyze 'df', draw charts, or perform calculations. Pre-imported: 'df' (DataFrame), 'pd', 'plt', 'sns'. You can also import standard libraries like 'datetime', 'math', 'numpy', 'json', 're', etc. Always import datetime inside your code if you need the current date.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -759,6 +759,10 @@ else:
         prompt = st.chat_input(t("chat_input", lang=lang))
     with mic_col:
         audio_bytes = st.audio_input("🎙️", label_visibility="collapsed")
+    st.caption(
+        "⚠️ " + t("voice_requires_internet", lang=lang),
+        help=t("voice_requires_internet_help", lang=lang),
+    )
     uploaded_image = st.file_uploader(
         t("image_uploader", lang=lang), type=["png", "jpg", "jpeg"]
     )
@@ -864,7 +868,7 @@ else:
             api_messages = [
                 {
                     "role": "system",
-                    "content": f"<|think|>\nYou are an expert data analyst. IMPORTANT: Only use tool calls (execute_python_code) when the user EXPLICITLY asks for charts, visualizations, tables, or code execution. For simple questions, answer directly with text — do NOT generate code, tables, or charts unless specifically requested. Data Context:\n{st.session_state.data_context}{lang_instruction}",
+                    "content": f"<|think|>\nYou are an expert data analyst. IMPORTANT: Only use tool calls (execute_python_code) when the user EXPLICITLY asks for charts, visualizations, tables, or code execution. For simple questions, answer directly with text — do NOT generate code, tables, or charts unless specifically requested. NOTE: You can import standard Python libraries (datetime, math, numpy, json, re, etc.) inside your code blocks. Use 'from datetime import datetime' to get the current date/time when needed. Data Context:\n{st.session_state.data_context}{lang_instruction}",
                 }
             ]
             for m in st.session_state.messages:
@@ -939,6 +943,30 @@ else:
                 answer_placeholder.markdown(final_content)
 
                 turn_tool_results = []
+
+                # Fallback: If model outputs code as text (not via tool calls), extract and execute it
+                code_block_pattern = re.compile(r"```python\s*\n(.*?)\n```", re.DOTALL)
+                text_code_blocks = code_block_pattern.findall(final_content)
+                if text_code_blocks and not tool_calls:
+                    for block in text_code_blocks:
+                        code = block.strip()
+                        if code:
+                            st.info(t("executing_text_code", lang=lang))
+                            res = execute_python_code(code)
+                            tool_res_entry = {
+                                "code": code,
+                                "output": res.get("output"),
+                                "plot": res.get("plot"),
+                            }
+                            if st.session_state.last_tool_df is not None:
+                                tool_res_entry["df_preview"] = (
+                                    st.session_state.last_tool_df.head(20).to_json()
+                                )
+                            turn_tool_results.append(tool_res_entry)
+                    # Remove code blocks from final_content since they'll be shown as results
+                    final_content = code_block_pattern.sub("", final_content).strip()
+                    answer_placeholder.markdown(final_content)
+
                 if tool_calls:
                     for tc in tool_calls.values():
                         st.info(t("calling_tool", lang=lang))

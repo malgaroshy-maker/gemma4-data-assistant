@@ -34,6 +34,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Known Limitations
+- **Voice input requires internet**: Uses Google's Speech-to-Text API (`recognize_google()`). Audio is sent to Google's servers for transcription and immediately discarded.
+- **Gemma 4 native ASR not yet supported in llama.cpp**: The model has built-in audio capabilities, but llama.cpp's server does not yet route audio input to Gemma 4 (tracked in [issue #21325](https://github.com/ggml-org/llama.cpp/issues/21325)).
+- **Offline workaround**: Type queries manually — all other features work fully offline.
+
+### Planned
+- **Faster-Whisper integration** for fully offline voice recognition (supports Arabic)
+- **Native Gemma 4 ASR** once llama.cpp resolves issue #21325
+- See [AUDIO_STATUS.md](AUDIO_STATUS.md) for full details
+
 ## [1.0.0] - 2026-04-05
 
 ### Added

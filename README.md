@@ -43,6 +43,7 @@
   - [RTL Layout](#rtl-layout)
   - [Adding New Languages](#adding-new-languages)
 - [Project Structure](#-project-structure)
+- [Known Limitations](#-known-limitations)
 - [Contributing](#-contributing)
 - [License](#-license)
 - [Acknowledgments](#-acknowledgments)
@@ -75,7 +76,7 @@ The application leverages:
 - **Persistent Results**: Charts and tables survive session reruns
 
 ### 🎙️ Multimodal Inputs
-- **Voice-to-Text**: Local speech recognition via `SpeechRecognition` library
+- **Voice-to-Text**: Local speech recognition via `SpeechRecognition` library (currently uses Google's online API — see [Audio Status](AUDIO_STATUS.md))
 - **Image Analysis**: Upload screenshots/charts for comparative analysis
 - **Text Chat**: Traditional conversational interface with context awareness
 
@@ -223,9 +224,11 @@ streamlit run app.py
 
 ### Voice Commands
 
+> ⚠️ **Note**: Voice input currently requires an internet connection (uses Google's Speech-to-Text API). Fully offline voice recognition is planned via [Faster-Whisper](AUDIO_STATUS.md) or once llama.cpp adds native Gemma 4 ASR support.
+
 1. Click the **🎙️ microphone icon** next to the chat input
 2. Speak your question clearly
-3. The app transcribes locally using `SpeechRecognition.recognize_google()`
+3. The app transcribes using `SpeechRecognition.recognize_google()`
 4. Transcribed text replaces the typed prompt
 5. **MD5 hash deduplication** prevents repeated processing
 
@@ -417,6 +420,24 @@ gemma4-data-assistant/
 
 ---
 
+## ⚠️ Known Limitations
+
+### Voice Input Requires Internet
+The voice-to-text feature currently uses Google's free Speech-to-Text API, which requires an internet connection. Your audio is sent to Google's servers for transcription and immediately discarded — no audio data is stored.
+
+**Why not use Gemma 4's native audio support?** Gemma 4 E4B has built-in ASR capabilities, but llama.cpp (the inference engine we use) does not yet properly route audio input to Gemma 4 through its server API. This is a [known issue (#21325)](https://github.com/ggml-org/llama.cpp/issues/21325) being actively tracked by the llama.cpp team.
+
+**What's planned:**
+1. **Faster-Whisper integration** — Fully offline, supports Arabic, production-ready
+2. **Native Gemma 4 ASR** — Once llama.cpp resolves issue #21325
+
+For full details, see [AUDIO_STATUS.md](AUDIO_STATUS.md).
+
+### Offline Workaround
+If you need to use the app completely offline, simply type your queries manually. All other features (data analysis, charts, image upload, text chat) work fully offline.
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Here's how you can help:
@@ -534,7 +555,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **نتائج مستمرة**: الرسوم البيانية والجداول تظل موجودة حتى بعد إعادة تشغيل الجلسة.
 
 ### 🎙️ مدخلات متعددة الوسائط
-- **تحويل الصوت إلى نص**: التعرف على الكلام محلياً عبر مكتبة `SpeechRecognition`.
+- **تحويل الصوت إلى نص**: التعرف على الكلام عبر مكتبة `SpeechRecognition` (حالياً يستخدم واجهة Google عبر الإنترنت — انظر [حالة الصوت](AUDIO_STATUS.md))
 - **تحليل الصور**: رفع لقطات الشاشة أو الرسوم البيانية للمقارنة والتحليل.
 - **دردشة نصية**: واجهة محادثة تقليدية مع وعي كامل بالسياق.
 
@@ -647,6 +668,24 @@ gemma4-data-assistant/
 └── .streamlit/                     # إعدادات Streamlit
     └── config.toml
 ```
+
+---
+
+## ⚠️ القيود المعروفة
+
+### إدخال الصوت يتطلب اتصال بالإنترنت
+ميزة تحويل الصوت إلى نص تستخدم حالياً واجهة Google المجانية للتعرف على الكلام، والتي تتطلب اتصالاً بالإنترنت. يتم إرسال الصوت إلى خوادم Google للتحويل الفوري ثم يتم حذفه فوراً — لا يتم تخزين أي بيانات صوتية.
+
+**لماذا لا نستخدم الدعم الصوتي الأصلي لـ Gemma 4؟** نموذج Gemma 4 E4B يدعم الصوت بشكل مدمج، لكن llama.cpp (محرك الاستدلال الذي نستخدمه) لا يزال لا يدعم توجيه المدخلات الصوتية إلى Gemma 4 عبر واجهة الخادم. هذه [مشكلة معروفة (#21325)](https://github.com/ggml-org/llama.cpp/issues/21325) يعمل فريق llama.cpp على حلها بنشاط.
+
+**المخطط:**
+1. **دمج Faster-Whisper** — يعمل بدون إنترنت بالكامل، يدعم العربية، جاهز للإنتاج
+2. **دعم Gemma 4 الأصلي** — بمجرد حل المشكلة #21325 في llama.cpp
+
+لمزيد من التفاصيل، انظر [AUDIO_STATUS.md](AUDIO_STATUS.md).
+
+### حل بديل للاستخدام بدون إنترنت
+إذا كنت تحتاج لاستخدام التطبيق بدون إنترنت، ببساطة اكتب استفساراتك يدوياً. جميع الميزات الأخرى (تحليل البيانات، الرسوم البيانية، رفع الصور، الدردشة النصية) تعمل بدون إنترنت بالكامل.
 
 ---
 
