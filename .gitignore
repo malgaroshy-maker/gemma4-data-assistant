@@ -38,3 +38,6 @@ gemma_transformed.xlsx
 
 # Streamlit
 .streamlit/cache/
+
+# Personal/local configs (not for git)
+start_llama_server_personal.bat

@@ -145,7 +145,7 @@ TRANSLATIONS = {
         "connected": "متصل! تم العثور على {count} نماذج.",
         # Developer credit
         "developed_by": "تطوير",
-        "engineer_title": "مهندس كهرباء ومتحمس للذكاء الاصطناعي",
+        "engineer_title": "مهندس كهربائي ومطور ذكاء اصطناعي",
         # Language
         "language_label": "🌐 اللغة",
         # Dynamic strings

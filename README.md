@@ -718,7 +718,7 @@ gemma4-data-assistant/
 <div align="center">
 
 **تم التطوير بواسطة [Mahamed Algaroshy](https://github.com/malgaroshy-maker)**  
-*مهندس كهرباء ومتحمس للذكاء الاصطناعي*
+*مهندس كهربائي ومطور ذكاء اصطناعي*
 
 [⭐ Star this repo](https://github.com/malgaroshy-maker/gemma4-data-assistant/stargazers) • [🐛 Report Bug](https://github.com/malgaroshy-maker/gemma4-data-assistant/issues)
 
