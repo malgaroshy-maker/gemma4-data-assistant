@@ -1,56 +1,35 @@
 # 🎙️ Audio Input Status
 
-## Current State
+## Current State: **Native Gemma 4 ASR (Fully Offline)**
 
-**Voice input currently requires an internet connection.** The app uses Google's free Speech-to-Text API via the `SpeechRecognition` library (`recognize_google()`). Your audio is sent to Google's servers for transcription and the text result is returned to the app.
+Voice input now uses Gemma 4 E4B's **built-in ASR** via llama-server's `/v1/audio/transcriptions` API endpoint. No internet connection is required — all processing is done locally.
 
-**No audio data is stored or shared** — it's only used for real-time transcription and immediately discarded.
+### How It Works
+1. `st.audio_input()` captures microphone audio as WAV bytes
+2. Audio is sent directly to `llama-server` via OpenAI-compatible `client.audio.transcriptions.create()`
+3. Gemma 4's native audio encoder (Conformer) transcribes the speech
+4. Transcribed text is displayed for user confirmation before sending to chat
 
-## Limitation
+### Requirements
+- **llama-server** must be running with `--mmproj` flag (BF16 mmproj required for audio)
+- The `mmproj-BF16.gguf` file must contain the audio encoder (confirmed in our setup)
+- Maximum audio length: **30 seconds**
 
-Gemma 4 E4B has **native audio (ASR) support** built into the model, but **llama.cpp does not yet properly route audio input to Gemma 4** through its server API. This is a known issue being actively tracked:
+### llama.cpp Timeline
+| PR/Issue | Title | Status |
+|---|---|---|
+| [#21421](https://github.com/ggml-org/llama.cpp/pull/21421) | mtmd: add Gemma 4 audio conformer encoder | **Merged** (Apr 2026) |
+| [#21863](https://github.com/ggml-org/llama.cpp/pull/21863) | server: support OAI /v1/audio/transcriptions | **Merged** (Apr 2026) |
+| [#21905](https://github.com/ggml-org/llama.cpp/pull/21905) | Fix reasoning leakage in transcription | **Merged** (Apr 2026) |
 
-- **GitHub Issue**: [llama.cpp #21325](https://github.com/ggml-org/llama.cpp/issues/21325) — "Eval bug: Gemma 4 audio support is missing"
-- **GitHub Discussion**: [llama.cpp #21334](https://github.com/ggml-org/llama.cpp/discussions/21334) — "How to input audio to Gemma 4 E4B?"
-- **Related PR**: [llama.cpp #21421](https://github.com/ggml-org/llama.cpp/pull/21421) — Audio processing for Gemma 4 conformer encoder (currently "Changes requested")
+## What This Means
 
-The mmproj file (`mmproj-gemma-4-e4b-it-f16.gguf`) **does contain an audio encoder** (confirmed by llama.cpp logs: `clip_model_loader: has audio encoder`), but the server-side routing is not yet implemented.
+| Feature | Status |
+|---|---|
+| Voice Input | ✅ Works offline via Gemma 4 native ASR |
+| Internet Required | ❌ No — 100% local processing |
+| Arabic Voice | ✅ Supported (native multilingual ASR) |
+| Privacy | ✅ Audio never leaves your machine |
 
-## Planned Solutions
-
-We are working on two paths to achieve **fully offline voice recognition**:
-
-### Path 1: Faster-Whisper (Recommended — Coming Soon)
-- **What**: Integrate [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper) using CTranslate2 backend
-- **Benefits**: Fully offline, supports Arabic, fast inference on CPU/GPU, production-ready
-- **Integration**: Replaces `SpeechRecognition.recognize_google()` with local transcription
-- **Model size**: ~400MB for medium model (good accuracy/speed balance)
-- **Arabic support**: Excellent — Whisper was trained on 99 languages including Arabic
-
-### Path 2: Native Gemma 4 ASR via llama.cpp (Future)
-- **What**: Once llama.cpp merges PR #21421 and resolves issue #21325, we'll switch to native audio
-- **Benefits**: No additional dependencies, single model handles everything
-- **Timeline**: Depends on llama.cpp development — actively being worked on
-- **Status**: Blocked on PR review and CI approval
-
-## What This Means for You
-
-| Feature | Current | Planned |
-|---------|---------|---------|
-| Voice Input | ✅ Works (requires internet) | ✅ Fully offline |
-| Arabic Voice | ⚠️ Limited (Google API) | ✅ Excellent (Whisper) |
-| Privacy | ⚠️ Audio sent to Google | ✅ 100% local |
-| Offline Use | ❌ Not supported | ✅ Fully supported |
-
-## Workaround for Offline Use
-
-If you need to use the app completely offline right now:
-1. Type your queries manually instead of using voice input
-2. All other features (data analysis, charts, image upload, text chat) work fully offline
-
-## Tracking Progress
-
-Watch these links for updates:
-- [llama.cpp #21325](https://github.com/ggml-org/llama.cpp/issues/21325) — Audio support issue
-- [llama.cpp #21421](https://github.com/ggml-org/llama.cpp/pull/21421) — Audio processing PR
-- Our [GitHub Issues](https://github.com/malgaroshy-maker/gemma4-data-assistant/issues) — Faster-Whisper integration tracking
+## Fallback
+If `llama-server` is not running or the transcription endpoint fails, the app shows a clear error message directing the user to start the server with `llama-opencode.bat`.

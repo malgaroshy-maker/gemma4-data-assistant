@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.2.1] - 2026-04-25
+
+### Added
+- **Context window management**: Token counting before API calls, automatic old-message trimming when nearing 128K limit
+- **Context meter in sidebar**: Shows combined data + conversation token usage with overflow warning
+- **Sandbox hardening**: `__import__` blocked; 12 safe modules pre-imported (`datetime`, `numpy`, `dataframe_to_rows`, `Image`, etc.)
+- **Message cap**: Auto-trims to 50 most recent messages to prevent session state bloat
+- **Multi-figure capture**: All matplotlib figures saved individually, not just the last one
+- **Speculative decoding** enabled in `llama-opencode.bat` (~1.3x speedup via ngram-cache)
+- Context trimming final safety valve (truncates system prompt if still over limit)
+
+### Changed
+- **System prompt rewritten**: Cleaner rules, error-handling guidance, number formatting, pre-imported module instructions
+- **Excel detection**: Now scans for xlsx ZIP magic bytes (`PK` header) on `BytesIO` objects only (avoids StringIO corruption)
+- Tool description updated: mentions all pre-imported modules, no import statements needed
+
+### Fixed
+- `</think>` data loss: trailing text after closing think tag in same chunk is now preserved
+- `response_format="json"` for llama-server transcription endpoint (was `"text"` causing 400 errors)
+- `type(open("dummy","rb"))` crash replaced with proper `BytesIO` type check
+- `plt`/`sns` code-splitting regex no longer breaks assignments (`fig, ax = plt.subplots()`)
+- JSON parse crash: malformed tool-call arguments now shown as warning, partial content preserved
+
+### Removed
+- 4 orphaned translation keys (`analyze_media`, `voice_requires_internet`, `speech_error`, `voice_input_label`)
+
+## [1.2.0] - 2026-04-24
+
+### Added
+- **Native Gemma 4 ASR** for fully offline voice recognition via `/v1/audio/transcriptions` endpoint
+- **AI-generated Excel reports** with tables and charts (openpyxl in tool execution context)
+- **Optimized `llama-opencode.bat`** server launcher for RTX 4060 8GB (flash attn, KV cache quantization, full GPU offload)
+- Download button for AI-generated Excel reports in chat history
+
+### Changed
+- Voice input: replaced Google Speech-to-Text with native Gemma 4 ASR (100% offline)
+- `openpyxl` added to tool execution globals (`execute_python_code`)
+- System prompt updated with Excel report generation instructions
+- Tool schema now includes Excel creation capability
+- Updated translations (voice labels now indicate "Fully offline")
+
+### Removed
+- `SpeechRecognition` from requirements.txt (no longer needed)
+- Internet requirement for voice input
+
 ## [1.1.0] - 2026-04-05
 
 ### Added
@@ -34,15 +79,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Known Limitations
-- **Voice input requires internet**: Uses Google's Speech-to-Text API (`recognize_google()`). Audio is sent to Google's servers for transcription and immediately discarded.
-- **Gemma 4 native ASR not yet supported in llama.cpp**: The model has built-in audio capabilities, but llama.cpp's server does not yet route audio input to Gemma 4 (tracked in [issue #21325](https://github.com/ggml-org/llama.cpp/issues/21325)).
-- **Offline workaround**: Type queries manually — all other features work fully offline.
-
 ### Planned
-- **Faster-Whisper integration** for fully offline voice recognition (supports Arabic)
-- **Native Gemma 4 ASR** once llama.cpp resolves issue #21325
-- See [AUDIO_STATUS.md](AUDIO_STATUS.md) for full details
+- Multi-model support
+- Enhanced chart customization options
 
 ## [1.0.0] - 2026-04-05
 

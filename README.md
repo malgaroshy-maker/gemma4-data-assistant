@@ -76,14 +76,14 @@ The application leverages:
 - **Persistent Results**: Charts and tables survive session reruns
 
 ### 🎙️ Multimodal Inputs
-- **Voice-to-Text**: Local speech recognition via `SpeechRecognition` library (currently uses Google's online API — see [Audio Status](AUDIO_STATUS.md))
+- **Voice-to-Text**: Fully offline speech recognition via Gemma 4 E4B's native ASR (Conformer audio encoder)
 - **Image Analysis**: Upload screenshots/charts for comparative analysis
 - **Text Chat**: Traditional conversational interface with context awareness
 
 ### 📊 Data Intelligence
 - **Auto-profiling**: Schema detection, column types, and statistical summaries (mean, sum, min, max, std)
 - **Context Optimization**: Fast Context mode (100 rows + full statistics) for 70% latency reduction
-- **Export Capabilities**: Download transformed data as Excel files
+- **Export Capabilities**: Download transformed data as Excel files, plus AI-generated Excel reports with tables and charts
 - **Demo Datasets**: 5 pre-loaded datasets for immediate testing
 
 ### 🌐 Bilingual Support (English / العربية)
@@ -143,7 +143,10 @@ pip install -r requirements.txt
 
 **Step 1: Start the llama-server**
 ```bash
-# Use the pre-configured launcher
+# Use the optimized launcher (recommended for RTX 4060 8GB)
+./llama-opencode.bat
+
+# Or use the legacy launcher
 ./start_llama_server.bat
 
 # Or run manually (update paths to your model locations)
@@ -224,12 +227,12 @@ streamlit run app.py
 
 ### Voice Commands
 
-> ⚠️ **Note**: Voice input currently requires an internet connection (uses Google's Speech-to-Text API). Fully offline voice recognition is planned via [Faster-Whisper](AUDIO_STATUS.md) or once llama.cpp adds native Gemma 4 ASR support.
+> ✅ **Fully Offline**: Voice input uses Gemma 4 E4B's native ASR. No internet connection required.
 
 1. Click the **🎙️ microphone icon** next to the chat input
 2. Speak your question clearly
-3. The app transcribes using `SpeechRecognition.recognize_google()`
-4. Transcribed text replaces the typed prompt
+3. The app transcribes using Gemma 4's built-in Conformer audio encoder via llama-server's `/v1/audio/transcriptions` endpoint
+4. Transcribed text is displayed for confirmation before sending
 5. **MD5 hash deduplication** prevents repeated processing
 
 **Example commands:**
@@ -258,6 +261,7 @@ The AI can autonomously execute Python code through the `execute_python_code` to
 - `pd`: Pandas library
 - `plt`: Matplotlib pyplot
 - `sns`: Seaborn library
+- `openpyxl`: Excel workbook creation
 
 **Example AI-generated code:**
 ```python
@@ -388,9 +392,10 @@ lang_options = {"en": "🇬🇧 English", "ar": "🇸🇦 العربية", "fr":
 
 ```
 gemma4-data-assistant/
-├── app.py                          # Main Streamlit application (~990 lines)
+├── app.py                          # Main Streamlit application (~1200 lines)
 ├── translations.py                 # Bilingual translation dictionary (EN/AR)
-├── start_llama_server.bat          # Auto-detecting server launcher
+├── llama-opencode.bat              # Optimized server launcher (128K, flash attn)
+├── start_llama_server.bat          # Legacy server launcher
 ├── run_app.bat                     # Windows app launcher (auto-creates venv)
 ├── run_app.ps1                     # PowerShell app launcher
 ├── requirements.txt                # Python dependencies
@@ -413,7 +418,8 @@ gemma4-data-assistant/
 |------|---------|
 | `app.py` | Single-file Streamlit app with all logic |
 | `translations.py` | Translation dictionary (EN/AR) with `t()` helper |
-| `start_llama_server.bat` | Auto-detects model from HuggingFace cache |
+| `llama-opencode.bat` | Optimized for RTX 4060 8GB: flash attn, KV cache quantization |
+| `start_llama_server.bat` | Legacy launcher — auto-detects model from HuggingFace cache |
 | `run_app.bat` | Creates venv, installs deps, runs app |
 | `AGENTS.md` | Technical documentation for AI agents |
 | `requirements.txt` | All Python dependencies including `arabic-reshaper` + `python-bidi` |
@@ -422,19 +428,12 @@ gemma4-data-assistant/
 
 ## ⚠️ Known Limitations
 
-### Voice Input Requires Internet
-The voice-to-text feature currently uses Google's free Speech-to-Text API, which requires an internet connection. Your audio is sent to Google's servers for transcription and immediately discarded — no audio data is stored.
+### Voice Input — Fully Offline
+The voice-to-text feature now uses Gemma 4 E4B's **native ASR** via llama-server's `/v1/audio/transcriptions` endpoint. All processing is done locally — no internet connection required.
 
-**Why not use Gemma 4's native audio support?** Gemma 4 E4B has built-in ASR capabilities, but llama.cpp (the inference engine we use) does not yet properly route audio input to Gemma 4 through its server API. This is a [known issue (#21325)](https://github.com/ggml-org/llama.cpp/issues/21325) being actively tracked by the llama.cpp team.
-
-**What's planned:**
-1. **Faster-Whisper integration** — Fully offline, supports Arabic, production-ready
-2. **Native Gemma 4 ASR** — Once llama.cpp resolves issue #21325
+Since llama.cpp merged the Gemma 4 audio conformer encoder (PR #21421) and the OpenAI-compatible transcription API (PR #21863), the former limitations are resolved. Voice input works completely offline with support for both English and Arabic.
 
 For full details, see [AUDIO_STATUS.md](AUDIO_STATUS.md).
-
-### Offline Workaround
-If you need to use the app completely offline, simply type your queries manually. All other features (data analysis, charts, image upload, text chat) work fully offline.
 
 ---
 
@@ -555,7 +554,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **نتائج مستمرة**: الرسوم البيانية والجداول تظل موجودة حتى بعد إعادة تشغيل الجلسة.
 
 ### 🎙️ مدخلات متعددة الوسائط
-- **تحويل الصوت إلى نص**: التعرف على الكلام عبر مكتبة `SpeechRecognition` (حالياً يستخدم واجهة Google عبر الإنترنت — انظر [حالة الصوت](AUDIO_STATUS.md))
+- **تحويل الصوت إلى نص**: التعرف على الكلام بدون إنترنت عبر ASR الأصلي لـ Gemma 4 E4B
 - **تحليل الصور**: رفع لقطات الشاشة أو الرسوم البيانية للمقارنة والتحليل.
 - **دردشة نصية**: واجهة محادثة تقليدية مع وعي كامل بالسياق.
 
@@ -614,7 +613,10 @@ pip install -r requirements.txt
 
 **الخطوة 1: تشغيل llama-server**
 ```bash
-# استخدم المشغل المعد مسبقاً
+# استخدم المشغل المحسن (موصى به لـ RTX 4060 8GB)
+./llama-opencode.bat
+
+# أو استخدم المشغل القديم
 ./start_llama_server.bat
 
 # أو التشغيل يدوياً (حدث المسارات لمكان النموذج لديك)
@@ -673,19 +675,12 @@ gemma4-data-assistant/
 
 ## ⚠️ القيود المعروفة
 
-### إدخال الصوت يتطلب اتصال بالإنترنت
-ميزة تحويل الصوت إلى نص تستخدم حالياً واجهة Google المجانية للتعرف على الكلام، والتي تتطلب اتصالاً بالإنترنت. يتم إرسال الصوت إلى خوادم Google للتحويل الفوري ثم يتم حذفه فوراً — لا يتم تخزين أي بيانات صوتية.
+### إدخال الصوت — يعمل بدون إنترنت بالكامل
+ميزة تحويل الصوت إلى نص تستخدم الآن ASR الأصلي لـ Gemma 4 E4B عبر واجهة `/v1/audio/transcriptions` في llama-server. كل المعالجة محلية — لا حاجة للإنترنت.
 
-**لماذا لا نستخدم الدعم الصوتي الأصلي لـ Gemma 4؟** نموذج Gemma 4 E4B يدعم الصوت بشكل مدمج، لكن llama.cpp (محرك الاستدلال الذي نستخدمه) لا يزال لا يدعم توجيه المدخلات الصوتية إلى Gemma 4 عبر واجهة الخادم. هذه [مشكلة معروفة (#21325)](https://github.com/ggml-org/llama.cpp/issues/21325) يعمل فريق llama.cpp على حلها بنشاط.
-
-**المخطط:**
-1. **دمج Faster-Whisper** — يعمل بدون إنترنت بالكامل، يدعم العربية، جاهز للإنتاج
-2. **دعم Gemma 4 الأصلي** — بمجرد حل المشكلة #21325 في llama.cpp
+منذ أن دمج llama.cpp مشفر الصوت Conformer لـ Gemma 4 (PR #21421) وواجهة الترجمة الصوتية المتوافقة مع OpenAI (PR #21863)، تم حل القيود السابقة. الإدخال الصوتي يعمل بدون إنترنت مع دعم اللغتين الإنجليزية والعربية.
 
 لمزيد من التفاصيل، انظر [AUDIO_STATUS.md](AUDIO_STATUS.md).
-
-### حل بديل للاستخدام بدون إنترنت
-إذا كنت تحتاج لاستخدام التطبيق بدون إنترنت، ببساطة اكتب استفساراتك يدوياً. جميع الميزات الأخرى (تحليل البيانات، الرسوم البيانية، رفع الصور، الدردشة النصية) تعمل بدون إنترنت بالكامل.
 
 ---
 

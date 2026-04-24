@@ -9,6 +9,9 @@ import matplotlib.font_manager as fm
 import seaborn as sns
 import json
 import io
+import openpyxl
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.drawing.image import Image as OpenpyxlImage
 import hashlib
 import re
 from translations import t
@@ -81,7 +84,34 @@ def execute_python_code(code_string):
     plot_b64 = None
     captured_df = None
     try:
-        exec_globals = {"df": st.session_state.df, "pd": pd, "plt": plt, "sns": sns}
+        import builtins
+        import datetime, numpy, json, re, math
+
+        safe_builtins = {
+            k: v
+            for k, v in builtins.__dict__.items()
+            if k
+            not in {
+                "exec", "eval", "compile", "breakpoint",
+                "exit", "quit", "input", "__import__",
+            }
+        }
+        exec_globals = {
+            "df": st.session_state.df,
+            "pd": pd,
+            "plt": plt,
+            "sns": sns,
+            "openpyxl": openpyxl,
+            "datetime": datetime,
+            "numpy": numpy,
+            "np": numpy,
+            "json": json,
+            "re": re,
+            "math": math,
+            "dataframe_to_rows": dataframe_to_rows,
+            "Image": OpenpyxlImage,
+            "__builtins__": safe_builtins,
+        }
         ar_ok = st.session_state.get("language") == "ar" and _ensure_arabic_matplotlib()
         if ar_ok:
             import arabic_reshaper
@@ -90,7 +120,7 @@ def execute_python_code(code_string):
             exec_globals["arabic_text"] = lambda text: get_display(
                 arabic_reshaper.reshape(text)
             )
-        from io import StringIO, BytesIO
+        from io import StringIO, BytesIO, IOBase
         import sys
 
         # Strip plt.show() — blocks in non-interactive (Agg) backend
@@ -112,33 +142,73 @@ def execute_python_code(code_string):
         exec_globals["print"] = wrapped_print
 
         # Execute the code
-        exec(code_string, exec_globals)
+        try:
+            exec(code_string, exec_globals)
+        except (IndentationError, SyntaxError) as e:
+            # Try to fix common indentation/syntax issues from AI-generated code
+            lines = code_string.split("\n")
+            fixed_lines = []
+            i = 0
+            while i < len(lines):
+                line = lines[i]
+                fixed_lines.append(line)
+                # If line ends with colon, ensure next non-blank line is properly indented
+                if line.rstrip().endswith(":") and i + 1 < len(lines):
+                    # Find the next non-blank line
+                    j = i + 1
+                    while j < len(lines) and lines[j].strip() == "":
+                        j += 1
+                    if j < len(lines):
+                        next_nonblank = lines[j]
+                        current_indent = len(line) - len(line.lstrip())
+                        next_indent = len(next_nonblank) - len(next_nonblank.lstrip())
+                        # If next non-blank line has same or less indent, insert pass
+                        if next_indent <= current_indent:
+                            indent = " " * (current_indent + 4)
+                            fixed_lines.append(f"{indent}pass")
+                    # Copy any blank lines between colon and next code
+                    for k in range(i + 1, j if j < len(lines) else len(lines)):
+                        fixed_lines.append(lines[k])
+                i += 1
+            code_string = "\n".join(fixed_lines)
+            exec(code_string, exec_globals)
 
         # Capture text output
         output = redirected_output.getvalue().strip()
         sys.stdout = old_stdout
 
-        # Check for plots
+        # Check for plots — save each figure individually
         if plt.get_fignums():
             ar_ok = (
                 st.session_state.get("language") == "ar" and _ensure_arabic_matplotlib()
             )
-            if ar_ok:
-                for fig_num in plt.get_fignums():
-                    figure = plt.figure(fig_num)
-                    # Draw first to populate all text elements
+            fignums = list(plt.get_fignums())
+            plot_b64_list = []
+            for fig_num in fignums:
+                figure = plt.figure(fig_num)
+                if ar_ok:
                     figure.canvas.draw()
-                    # Process all Arabic text
                     _process_figure_text(figure)
-                    # Redraw with reshaped text
                     figure.canvas.draw()
-
-            buf = BytesIO()
-            plt.savefig(buf, format="png", bbox_inches="tight", dpi=100)
-            buf.seek(0)
-            plot_b64 = base64.b64encode(buf.read()).decode("utf-8")
-            plt.clf()
+                buf = BytesIO()
+                plt.savefig(fig_num, format="png", bbox_inches="tight", dpi=100)
+                buf.seek(0)
+                plot_b64_list.append(base64.b64encode(buf.read()).decode("utf-8"))
             plt.close("all")
+            plot_b64 = plot_b64_list[-1] if plot_b64_list else None
+
+        # Detect Excel workbook created during execution (scan for xlsx ZIP magic bytes)
+        excel_b64 = None
+        for name, val in exec_globals.items():
+            if isinstance(val, BytesIO):
+                try:
+                    val.seek(0)
+                    if val.read(2) == b"PK":  # xlsx file signature (ZIP container)
+                        val.seek(0)
+                        excel_b64 = base64.b64encode(val.read()).decode("utf-8")
+                        break
+                except Exception:
+                    pass
 
         # Detect any DataFrame created or modified during execution
         if "result_df" in exec_globals and isinstance(
@@ -154,8 +224,11 @@ def execute_python_code(code_string):
                 "pd",
                 "plt",
                 "sns",
+                "openpyxl",
+                "excel_bytes",
                 "StringIO",
                 "BytesIO",
+                "IOBase",
                 "sys",
                 "old_stdout",
                 "redirected_output",
@@ -174,6 +247,7 @@ def execute_python_code(code_string):
             "status": "success",
             "output": output or "Executed successfully.",
             "plot": plot_b64,
+            "excel": excel_b64,
         }
     except Exception as e:
         if "old_stdout" in locals():
@@ -186,7 +260,7 @@ tools_schema = [
         "type": "function",
         "function": {
             "name": "execute_python_code",
-            "description": "Executes Python code to analyze 'df', draw charts, or perform calculations. Pre-imported: 'df' (DataFrame), 'pd', 'plt', 'sns'. You can also import standard libraries like 'datetime', 'math', 'numpy', 'json', 're', etc. Always import datetime inside your code if you need the current date.",
+            "description": "Executes Python code to analyze 'df', draw charts, perform calculations, or generate Excel reports. Pre-imported: 'df', 'pd', 'plt', 'sns', 'openpyxl', 'dataframe_to_rows', 'Image', 'datetime', 'numpy' (as 'np'), 'json', 're', 'math'. Do NOT use import statements — all needed modules are already available. For Excel reports: use openpyxl + dataframe_to_rows + Image. Save to BytesIO named 'excel_bytes'. ws.append() requires a LIST: ws.append(['text']) not ws.append('text'). Example: 'wb = openpyxl.Workbook(); ws = wb.active; for r in dataframe_to_rows(df, index=False, header=True): ws.append(r); ws2 = wb.create_sheet(\"Summary\"); ws2.append([\"Label\",\"Value\"]); excel_bytes = BytesIO(); wb.save(excel_bytes)'",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -512,10 +586,14 @@ with st.sidebar:
 
     st.caption(t("context_window_caption", lang=lang))
     est_tokens = len(st.session_state.data_context) // 4
+    ctx_tokens = st.session_state.get("current_ctx_tokens", est_tokens)
+    total_est = est_tokens + ctx_tokens
     st.progress(
-        min(est_tokens / 128000, 1.0),
-        text=t("context_meter", lang=lang, est=f"{est_tokens:,}"),
+        min(total_est / 128000, 1.0),
+        text=t("context_meter", lang=lang, est=f"{total_est:,}"),
     )
+    if total_est > 96000:
+        st.warning(f"⚠️ Context nearing limit ({total_est:,} / 128K tokens). Older messages will be dropped.")
 
     with st.expander(t("server_settings", lang=lang)):
         server_url = st.text_input(
@@ -732,7 +810,7 @@ else:
         st.dataframe(st.session_state.df.head(100), use_container_width=True)
 
     st.divider()
-    for message in st.session_state.messages:
+    for midx, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
             if "thought" in message and message["thought"]:
                 with st.expander(t("view_reasoning", lang=lang)):
@@ -742,10 +820,12 @@ else:
 
             # Show PERSISTED tool results (charts, code, etc.)
             if "tool_results" in message:
-                for res in message["tool_results"]:
+                for ridx, res in enumerate(message["tool_results"]):
                     if res.get("code"):
                         with st.expander(t("view_code", lang=lang), expanded=False):
                             st.code(res["code"], language="python")
+                    if res.get("error"):
+                        st.error(f"❌ Code execution error: {res['error']}")
                     if res.get("plot"):
                         st.image(base64.b64decode(res["plot"]))
                     if res.get("output") and res["output"] != t(
@@ -756,6 +836,14 @@ else:
                         st.markdown(f"### {t('result_table', lang=lang)}")
                         st.dataframe(
                             pd.read_json(res["df_preview"]), use_container_width=True
+                        )
+                    if res.get("excel"):
+                        st.download_button(
+                            label="📥 Download Excel Report",
+                            data=base64.b64decode(res["excel"]),
+                            file_name="gemma_report.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key=f"dl_excel_{midx}_{ridx}",
                         )
 
     # Chat input row with integrated mic
@@ -848,13 +936,12 @@ else:
             )
             st.session_state.pending_image_name = uploaded_image.name
 
-    # Handle Audio: Transcribe locally using SpeechRecognition
-    # Store transcribed text in session state — only send when user submits
+    # Handle Audio: Transcribe using native Gemma 4 ASR via llama-server
+    # Stores transcribed text in session state — only sends when user clicks Send
     transcribed_text = None
     audio_ready_to_send = False
     if audio_bytes:
-        import speech_recognition as sr
-        import tempfile
+        import io
 
         audio_content = audio_bytes.getvalue()
         audio_hash = hashlib.md5(audio_content).hexdigest()
@@ -863,31 +950,38 @@ else:
             st.session_state.last_audio_hash = audio_hash
             st.session_state.pending_audio_text = None
 
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                tmp.write(audio_content)
-                tmp_path = tmp.name
-
             try:
-                recognizer = sr.Recognizer()
-                with sr.AudioFile(tmp_path) as source:
-                    audio_data = recognizer.record(source)
-                transcribed = recognizer.recognize_google(audio_data)
-                st.session_state.pending_audio_text = transcribed
-                st.success(t("transcribed", lang=lang, text=transcribed))
-            except sr.UnknownValueError:
-                st.warning(t("could_not_understand", lang=lang))
-                st.session_state.pending_audio_text = None
-            except sr.RequestError as e:
-                st.error(t("speech_error", lang=lang, error=e))
-                st.session_state.pending_audio_text = None
+                asr_lang_name = {"en": "English", "ar": "Arabic"}.get(lang, "English")
+                asr_prompt = (
+                    f"Transcribe the following speech segment in {asr_lang_name} into {asr_lang_name} text.\n\n"
+                    "Follow these specific instructions for formatting the answer:\n"
+                    "* Only output the transcription, with no newlines.\n"
+                    "* When transcribing numbers, write the digits, i.e. write 1.7 and not one point seven, and write 3 instead of three."
+                )
+                response = client.audio.transcriptions.create(
+                    model="gemma4",
+                    file=("audio.wav", io.BytesIO(audio_content), "audio/wav"),
+                    language=lang,
+                    prompt=asr_prompt,
+                    response_format="json",
+                )
+                transcribed = response.text.strip()
+                if transcribed:
+                    st.session_state.pending_audio_text = transcribed
+                    st.success(t("transcribed", lang=lang, text=transcribed))
+                else:
+                    st.warning(t("could_not_understand", lang=lang))
+                    st.session_state.pending_audio_text = None
             except Exception as e:
-                st.error(t("audio_error", lang=lang, error=str(e)))
+                error_str = str(e)
+                if "mmproj" in error_str.lower() or "audio input is not supported" in error_str.lower():
+                    st.error(t("multimodal_error", lang=lang))
+                    st.warning(t("multimodal_fix", lang=lang))
+                elif "connect" in error_str.lower() or "timed out" in error_str.lower():
+                    st.error(t("server_offline", lang=lang))
+                else:
+                    st.error(t("audio_error", lang=lang, error=error_str))
                 st.session_state.pending_audio_text = None
-            finally:
-                import os
-
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
         elif st.session_state.get("pending_audio_text"):
             transcribed_text = st.session_state.pending_audio_text
 
@@ -952,13 +1046,48 @@ else:
             api_messages = [
                 {
                     "role": "system",
-                    "content": f"<|think|>\nYou are an expert data analyst. IMPORTANT: Only use tool calls (execute_python_code) when the user EXPLICITLY asks for charts, visualizations, tables, or code execution. For simple questions, answer directly with text — do NOT generate code, tables, or charts unless specifically requested. NOTE: You can import standard Python libraries (datetime, math, numpy, json, re, etc.) inside your code blocks. Use 'from datetime import datetime' to get the current date/time when needed. Data Context:\n{st.session_state.data_context}{lang_instruction}",
+                    "content": (
+                        f"<|think|>\n"
+                        f"You are an expert data analyst with access to a Python execution tool. Your job is to answer questions about the user's data.\n\n"
+                        f"USE THE TOOL (execute_python_code) when the user asks for: charts, visualizations, tables, statistical summaries, filtering, grouping, calculations, or Excel reports (.xlsx). "
+                        f"For conversational or knowledge questions, answer in plain text — do not generate code.\n\n"
+                        f"CODE RULES:\n"
+                        f"- All needed modules are pre-imported (pd, plt, sns, openpyxl, datetime, numpy as np, json, re, math, dataframe_to_rows, Image). Do NOT write import statements.\n"
+                        f"- Keep code under 50 lines unless building an Excel report\n"
+                        f"- Handle edge cases: check for empty DataFrames, missing columns, division by zero (use try/except or .get())\n"
+                        f"- Format numbers: use f\"{{value:,.0f}}\" for currency or df.round(2) for decimals\n"
+                        f"- Chart titles and axis labels must be descriptive\n"
+                        f"- Use f-strings, not string concatenation\n"
+                        f"- NEVER call plt.show() — it is stripped automatically\n\n"
+                        f"EXCEL REPORTS: When asked to create an Excel file:\n"
+                        f"- Create an openpyxl Workbook, add sheets, embed charts via openpyxl.drawing.image.Image\n"
+                        f"- Use dataframe_to_rows() to write DataFrames to sheets\n"
+                        f"- Save the final BytesIO to variable 'excel_bytes' — the file will appear as a download automatically\n"
+                        f"- ws.append() requires a LIST: ws.append(['text']) not ws.append('text')\n\n"
+                        f"ERRORS: If a tool call fails, briefly explain why and offer to fix it. If data is empty or a column is missing, tell the user.\n\n"
+                        f"Data Context:\n{st.session_state.data_context}{lang_instruction}"
+                    ),
                 }
             ]
             for m in st.session_state.messages:
                 api_messages.append(
                     {"role": m["role"], "content": m.get("api_content", m["content"])}
                 )
+
+            # Context window management: prevent silent failures from overflow
+            MAX_CTX_TOKENS = 96000  # Safe headroom under 128K
+            total_tokens = sum(len(json.dumps(m)) // 4 for m in api_messages)
+            while total_tokens > MAX_CTX_TOKENS and len(api_messages) > 3:
+                # Drop oldest user/assistant pair (keep system message)
+                if api_messages[1]["role"] == "user":
+                    del api_messages[1:3]
+                else:
+                    del api_messages[1:2]
+                total_tokens = sum(len(json.dumps(m)) // 4 for m in api_messages)
+            # Final safety: if still over limit with only system + 1 message, truncate system
+            if total_tokens > MAX_CTX_TOKENS and len(api_messages) > 1:
+                api_messages[0]["content"] = api_messages[0]["content"][:MAX_CTX_TOKENS * 2]
+            st.session_state.current_ctx_tokens = total_tokens
 
             try:
                 temp = {"Quick": 0.3, "Standard": 0.6, "Deep Analysis": 0.9}[
@@ -1011,7 +1140,11 @@ else:
                             is_thinking = True
                         if "</think>" in delta.content:
                             is_thinking = False
-                            continue
+                            parts = delta.content.split("</think>", 1)
+                            if len(parts) > 1 and parts[1].strip():
+                                delta.content = parts[1]
+                            else:
+                                continue
                         if is_thinking:
                             if not thought_expander:
                                 thought_expander = thought_container.expander(
@@ -1041,7 +1174,10 @@ else:
                                 "code": code,
                                 "output": res.get("output"),
                                 "plot": res.get("plot"),
+                                "excel": res.get("excel"),
                             }
+                            if res.get("status") == "error":
+                                tool_res_entry["error"] = res.get("message")
                             if st.session_state.last_tool_df is not None:
                                 tool_res_entry["df_preview"] = (
                                     st.session_state.last_tool_df.head(20).to_json()
@@ -1055,17 +1191,20 @@ else:
                     for tc in tool_calls.values():
                         st.info(t("calling_tool", lang=lang))
                         raw_args = tc["function"]["arguments"]
-                        # Extract valid JSON object from potentially malformed output
-                        match = re.search(r"\{.*\}", raw_args, re.DOTALL)
-                        if match:
-                            args = json.loads(match.group(0))
-                        else:
-                            args = json.loads(raw_args)
+                        try:
+                            match = re.search(r"\{.*\}", raw_args, re.DOTALL)
+                            if match:
+                                args = json.loads(match.group(0))
+                            else:
+                                args = json.loads(raw_args)
+                        except (json.JSONDecodeError, ValueError):
+                            st.warning(f"⚠️ Could not parse tool call arguments:\n```\n{raw_args[:200]}\n```")
+                            turn_tool_results.append({"code": raw_args[:200], "error": "JSON parse error in tool arguments"})
+                            continue
                         code = (
-                            args.get("code_string", "")
-                            .replace(" plt.", "\nplt.")
-                            .replace(" sns.", "\nsns.")
+                            re.sub(r"(?<!=)\s+plt\.", "\nplt.", args.get("code_string", ""))
                         )
+                        code = re.sub(r"(?<!=)\s+sns\.", "\nsns.", code)
                         st.code(code, language="python")
 
                         # Execute and capture results
@@ -1076,7 +1215,11 @@ else:
                             "code": code,
                             "output": res.get("output"),
                             "plot": res.get("plot"),
+                            "excel": res.get("excel"),
                         }
+                        if res.get("status") == "error":
+                            tool_res_entry["error"] = res.get("message")
+                            st.error(f"❌ Code execution error: {res.get('message')}")
                         if st.session_state.last_tool_df is not None:
                             # Save a small preview of the dataframe if one was created/modified
                             tool_res_entry["df_preview"] = (
@@ -1095,11 +1238,26 @@ else:
                         "tool_results": turn_tool_results,
                     }
                 )
+                # Prevent session state bloat from base64 images/Excel
+                if len(st.session_state.messages) > 50:
+                    st.session_state.messages = st.session_state.messages[-50:]
                 st.rerun()
             except Exception as e:
                 error_str = str(e)
+                # Save partial content so user doesn't lose streamed text
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": final_content if final_content.strip() else "(error processing response)",
+                        "thought": thought_content,
+                        "tool_results": turn_tool_results,
+                    }
+                )
+                if len(st.session_state.messages) > 50:
+                    st.session_state.messages = st.session_state.messages[-50:]
                 if "audio input is not supported" in error_str or "mmproj" in error_str:
                     st.error(t("multimodal_error", lang=lang))
                     st.warning(t("multimodal_fix", lang=lang))
                 else:
                     st.error(t("server_error", lang=lang, error=error_str))
+                st.rerun()

@@ -6,7 +6,7 @@ Welcome to the **Gemma 4 Data Assistant**! This demo is designed to push the bou
 
 ## 📂 Step 1: Ingesting Data
 1. Ensure your `llama-server` is active with multimodal support.
-    * **QUICK START:** Run the **`start_llama_server.bat`** file I created in the project folder. It is pre-configured with your local model and projector paths.
+    * **QUICK START:** Run the **`llama-opencode.bat`** file in the project folder. It is optimized for RTX 4060 8GB with flash attention and KV cache quantization.
 2. Drag and drop any **CSV** or **Excel** file into the sidebar.
 3. **Watch the Sidebar:** The **🩺 Gemma Data Health Check** will instantly profile your data, and the **Context Usage** meter will show you how much of the 128K window is being used.
 
@@ -22,15 +22,17 @@ Welcome to the **Gemma 4 Data Assistant**! This demo is designed to push the bou
 ### 🎙️ Scenario B: Voice to Data
 1. Click the **Microphone icon** in the chat bar.
 2. Say: *"Gemma, who is the manager for the IT department?"*
-3. **The Wow:** Gemma processes your query and searches the spreadsheet.
+3. **The Wow:** Gemma transcribes your voice locally using its native ASR — no internet required.
 
-> ⚠️ **Note**: Voice input currently requires an internet connection (uses Google's Speech-to-Text API). Fully offline voice recognition is planned via [Faster-Whisper](AUDIO_STATUS.md) or once llama.cpp adds native Gemma 4 ASR support.
+### 💾 Scenario C: AI-Generated Excel Reports
+1. Type: *"Create an Excel report with a summary table and a bar chart of sales by department."*
+2. **The Wow:** The AI writes Python code using openpyxl to build a formatted Excel workbook. A **📥 Download Excel Report** button appears — click to save the report!
 
-### 📊 Scenario C: The Agentic Visualization
+### 📊 Scenario D: The Agentic Visualization
 1. Type: *"Draw a colorful pie chart showing employee distribution by department."*
 2. **The Wow:** The AI will decide to use its `execute_python_code` tool. You will see the Python code appear, followed by a beautiful chart rendered directly in the chat.
 
-### 💾 Scenario D: Data Transformation & Export
+### 📋 Scenario E: Data Transformation & Export
 1. Type: *"Filter the data to show only 'Active' employees in the 'Finance' department making more than $1,500."*
 2. **The Wow:** Gemma will create a **📋 Result Table** in the chat. Underneath it, a button will appear: **"💾 Download this X row result"**. Click it to save your filtered data as a new Excel file!
 
