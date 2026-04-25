@@ -838,7 +838,7 @@ else:
                     if res.get("df_preview") is not None:
                         st.markdown(f"### {t('result_table', lang=lang)}")
                         st.dataframe(
-                            pd.read_json(res["df_preview"]), use_container_width=True
+                            pd.read_json(StringIO(res["df_preview"])), use_container_width=True
                         )
                     if res.get("excel"):
                         st.download_button(
@@ -920,7 +920,7 @@ else:
     with chat_col:
         prompt = st.chat_input(t("chat_input", lang=lang))
     with mic_col:
-        audio_bytes = st.audio_input("", label_visibility="collapsed")
+        audio_bytes = st.audio_input(t("record_audio", lang=lang), label_visibility="collapsed")
     uploaded_image = st.file_uploader(
         t("image_uploader", lang=lang), type=["png", "jpg", "jpeg"]
     )
