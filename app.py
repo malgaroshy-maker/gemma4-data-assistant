@@ -123,6 +123,9 @@ def execute_python_code(code_string):
         from io import StringIO, BytesIO, IOBase
         import sys
 
+        exec_globals["BytesIO"] = BytesIO
+        exec_globals["StringIO"] = StringIO
+
         # Strip plt.show() — blocks in non-interactive (Agg) backend
         code_string = re.sub(r"plt\.show\(\s*\)", "", code_string)
 
@@ -260,7 +263,7 @@ tools_schema = [
         "type": "function",
         "function": {
             "name": "execute_python_code",
-            "description": "Executes Python code to analyze 'df', draw charts, perform calculations, or generate Excel reports. Pre-imported: 'df', 'pd', 'plt', 'sns', 'openpyxl', 'dataframe_to_rows', 'Image', 'datetime', 'numpy' (as 'np'), 'json', 're', 'math'. Do NOT use import statements — all needed modules are already available. For Excel reports: use openpyxl + dataframe_to_rows + Image. Save to BytesIO named 'excel_bytes'. ws.append() requires a LIST: ws.append(['text']) not ws.append('text'). Example: 'wb = openpyxl.Workbook(); ws = wb.active; for r in dataframe_to_rows(df, index=False, header=True): ws.append(r); ws2 = wb.create_sheet(\"Summary\"); ws2.append([\"Label\",\"Value\"]); excel_bytes = BytesIO(); wb.save(excel_bytes)'",
+            "description": "Executes Python code to analyze 'df', draw charts, perform calculations, or generate Excel reports. CRITICAL: All modules are already pre-imported in the sandbox — NEVER write 'import' or 'from' statements. Pre-imported: df, pd, plt, sns, openpyxl, dataframe_to_rows, Image, datetime, numpy (as np), json, re, math, BytesIO, StringIO. For Excel reports: use openpyxl + dataframe_to_rows + Image. Save Excel to BytesIO named 'excel_bytes'. Example: 'wb = openpyxl.Workbook(); ws = wb.active; ws.title = \"Summary\"; for r in dataframe_to_rows(df, index=False, header=True): ws.append(r); excel_bytes = BytesIO(); wb.save(excel_bytes)'",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1052,7 +1055,7 @@ else:
                         f"USE THE TOOL (execute_python_code) when the user asks for: charts, visualizations, tables, statistical summaries, filtering, grouping, calculations, or Excel reports (.xlsx). "
                         f"For conversational or knowledge questions, answer in plain text — do not generate code.\n\n"
                         f"CODE RULES:\n"
-                        f"- All needed modules are pre-imported (pd, plt, sns, openpyxl, datetime, numpy as np, json, re, math, dataframe_to_rows, Image). Do NOT write import statements.\n"
+                        f"- All needed modules are pre-imported (pd, plt, sns, openpyxl, datetime, numpy as np, json, re, math, dataframe_to_rows, Image, BytesIO, StringIO). Do NOT write import statements.\n"
                         f"- Keep code under 50 lines unless building an Excel report\n"
                         f"- Handle edge cases: check for empty DataFrames, missing columns, division by zero (use try/except or .get())\n"
                         f"- Format numbers: use f\"{{value:,.0f}}\" for currency or df.round(2) for decimals\n"
